@@ -1,0 +1,39 @@
+---
+title: "Untitled"
+author: "Gustavo Magaña López"
+date: "19/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+$$
+y'(t) = -k y(t)
+$$ 
+On veut trouver la fonction $y(t)$ solution
+de (1) par la méthode numérique.
+
+```{r c.i.}
+t0 <- 0
+tf <- 200
+h <- pas <- 1
+k <- 0.1
+
+grille_t <- seq(from = t0, to = tf, by = pas)
+y <- c()
+y[1] <- 200
+y[2] <- y[1] + h * (-k * y[1])
+for (t in 3:201){
+  y[t] <- y[t-1] + h * (-k * y[t-1])
+}
+
+plot(grille_t, y)
+```
+
+Pour chaque $t$ dans `grille_t` je veux 
+connaître $y(t)$. Je défini mon vecteur $y$.
+
+
+

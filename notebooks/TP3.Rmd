@@ -1,0 +1,105 @@
+---
+title: "Etude qualitative des solutions des équations différentielles"
+author: "Gustavo Magaña López"
+date: "24/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+here::i_am("notebooks/TP3.Rmd")
+library(here)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libs, message=F}
+library(ggplot2)
+library(deSolve)
+```
+
+## Stabilité d'une équation différentielle à une variable
+
+1. Implémenter sous **R** la résolution de l'équation différentielle suivante.
+
+$$
+x'(t) = (1 - x) c x^a s - x c (1 - x)^a (1 - s)
+$$
+
+Avec les contraintes :
+
+* $c > 0$
+* $a > 1$
+* $s \in ]0 ; 1[$
+
+Et conditions initiales :
+
+* $c = 3$
+* $a = 2$
+* $s = 0.1$
+* $x(0) = 0.5$
+
+```{r func.def}
+# ceci était ma première idée mais elle n'est pas compatible avec
+# la fonction `ode`
+#f_from_constants <- function(c, a, s){
+#  function(x){
+#    (1 - x) * c * x^a * s - x * c * (1 - x)^a * (1 - s)
+#  }
+#}
+#myfunc <- f_from_constants(3, 2, 0.1)
+
+
+h <- 0.01
+t_0 <- 0
+t_f <- 10
+
+temps <- seq(from = t_0, to = t_f, by = h)
+parametres <- c(c=3, a=2, s=0.1)
+cond_init <- c(x=0.0001)
+
+# TODO : find how to do non-standard evaluation
+# providing a symbol or string with the formula
+# in order to generalise these functions.
+derivee.solver <- function(t, condinit, parametres){
+  #' Function to be pased to deSolve::ode()
+  with(as.list(c(condinit, parametres)),{
+      dx <- (1 - x) * c * x^a * s - x * c * (1 - x)^a * (1 - s)
+      return(list(c(dx)))
+  })
+}
+
+derivee.from.params <- function(parametres){
+  #' Generator to yield the derivative fixing the parameters
+  with(as.list(c(parametres)),{
+      function(x) (1 - x) * c * x^a * s - x * c * (1 - x)^a * (1 - s)
+  })
+}
+
+x <- ode(y = cond_init, times = temps, func = derivee.solver, parms = parametres)
+head(x)
+plot(x)
+```
+
+2. Existe-t-il une ou des valeurs de conditions initiales (valeurs fixées de $x(0)$)
+pour lesquelles la solution de l'équation (1) est une constante ?
+
+```{r points.crit}
+with(as.list(c(cond_init, parametres)),{
+  xstar1 <<- 0
+  xstar2 <<- 1
+  xstar3 <<- (1+(s/(1-s))^{1/(a-1)})^{-1}
+})
+```
+
+Oui, en analysant l'équation différentielle on peut observer qu'elle est 
+composée de la différence de deux termes contentant $1 - x$ et $x$, alternant 
+celui qui est élevé à la puissance $a$.
+
+**Réponse** : Nous avons donc que la solution est une constante 
+lorsque $x = 0 \; \vee x = 1$.
+
+Si ces valeurs existent, que pouvez-vous dire de la limite de la solution 
+de l'équation (1) (lorsque $t \rightarrow \infty$) pour des valeurs de
+conditions initiales proches des valeurs déterminées à la question précédente ?
+
+
+

@@ -1,0 +1,57 @@
+---
+title: "Résoludtion via `ode`"
+author: "Gustavo Magaña López"
+date: "24/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r dependencies}
+library(tidyverse)
+library(deSolve)
+```
+
+# Premier exemple
+
+$$
+\frac{dN(t)}{dt} = r N(t) - \frac{r}{K}N(t)
+$$
+
+avec $r = 2$, $K = 10$ et $N(0) = 0.1$.
+
+```{r}
+h <- 0.01
+t_0 <- 0
+t_f <- 10
+
+# definition de l'interval de temps
+temps <- seq(from = t_0, to = t_f, by = h)
+
+# vecteur de parametres
+parametres <- c(r = 1.5, K = 10)
+
+# vecteur des conditions initiales
+condinit <- c(x = 0.1)
+
+# definition de la fonction
+the_func1 <- function(t, condinit, parametres){
+  with(
+    as.list(c(condinit, parametres)),
+    {
+      dx <- r * x * (1-x/K)
+      return(list(c(dx)))
+    }
+  )
+}
+
+res <- ode(y = condinit, times = temps, func = the_func1, parms = parametres)
+head(res)
+```
+
+
+
+
