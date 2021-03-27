@@ -1,13 +1,17 @@
 ---
-title: "Untitled"
+title: "Modélisation en biologie"
 author: "Gustavo Magaña López"
 date: "19/03/2021"
 output: html_document
 ---
 
 ```{r setup, include=FALSE}
+here::i_am("notebooks/TP1.Rmd")
+library(here)
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+## Exercice 2.1 : résolution numérique avec la méthode d'Euler
 
 $$
 y'(t) = -k y(t)
@@ -23,17 +27,84 @@ k <- 0.1
 
 grille_t <- seq(from = t0, to = tf, by = pas)
 y <- c()
-y[1] <- 200
+y_0 <- y[1] <- 200
 y[2] <- y[1] + h * (-k * y[1])
 for (t in 3:201){
   y[t] <- y[t-1] + h * (-k * y[t-1])
 }
 
 plot(grille_t, y)
+sol_analyt <- function(x){ y_0*exp(-k*x) }
+curve(sol_analyt, from = t0, to = tf, add = T, col = "red")
 ```
 
 Pour chaque $t$ dans `grille_t` je veux 
 connaître $y(t)$. Je défini mon vecteur $y$.
 
+## Exercice 2.2 : résolution numérique avec la méthode d'Euler
 
+Implémenter l'algorithme d'Euler pour retrouver la solution de l'équation de Malthus. On pose arbitrairement $N(0) = 1$.
+
+$$
+\frac{dN(t)}{dt} = kN(t)
+$$
+
+Comparer avec la solution analytique connue.
+
+
+```{r Malthus}
+t0 <- 0
+tf <- 200
+h <- pas <- 1
+k <- 0.1
+
+grille_t <- seq(from = t0, to = tf, by = pas)
+y <- c()
+y_0 <- y[1] <- 1
+y[2] <- y[1] + h * (k * y[1])
+for (t in 3:201){
+  y[t] <- y[t-1] + h * (k * y[t-1])
+}
+
+plot(grille_t, y)
+sol_analyt <- function(x){ y_0*exp(k*x) }
+curve(sol_analyt, from = t0, to = tf, add = T, col = "red")
+```
+
+
+## Exercice 2.3 : résolution numérique avec la méthode d'Euler
+
+Implémenter l'algorithme d'Euler pour retrouver la solution
+de l'équation logistique de Verhulst. 
+
+$$
+\frac{dN(t)}{dt} = rN(t) - \frac{r}{K}N^2(t) = rN(t) \left(1 - \frac{N(t)}{K} \right)
+$$
+
+On pose arbitrairement :
+
+* $N (0) = 1$
+* $r = 0.1$
+* $K = 10$
+
+```{r Verhulst}
+t0 <- 0
+tf <- 200
+h <- pas <- 1
+k <- 0.1
+K <- 10
+r <- 0.1
+
+grille_t <- seq(from = t0, to = tf, by = pas)
+y <- c()
+y_0 <- y[1] <- 1
+y[2] <- y[1] + h * (k * y[1])
+for (t in 3:201){
+  y[t] <- 
+    y[t-1] + # d'après la série de Taylor, on fait la substitution de N' 
+    h * (r * y[t-1] * (1.0 - (y[t-1] / K )))
+}
+
+plot(grille_t, y)
+```
 
