@@ -12,9 +12,115 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 ```{r libs, message=F}
-library(ggplot2)
+library(tidyverse)
 library(deSolve)
+library(rootSolve)
 ```
+
+
+## Étude qualitative des solutions d'une ED
+
+### Recherche des états stationnaires (ES)
+
+Si l'on a une équation à une seule variable 
+
+$$
+\frac{dx}{dt} = f(x, p_k)
+$$
+
+où $p_k$ est l'ensemble des paramètres de l'ED, les états stationnaires, s'ils existent seront identifiés par les valeurs $x^\star$ ? annulant la fonction 
+$f : f (x^\star, p_k ) = 0$
+
+Soit une équation différentielle 
+
+$$
+\frac{dx}{dt} = f_1(x) - f_2(x)
+$$
+où 
+
+$$
+f_1(x) = k_0\left(1 + \frac{1}{x}\right)
+$$
+
+$$
+f_2(x) = k_1x^\alpha
+$$
+
+avec $k_0 = 10$, $k_1 = 150$ et $\alpha = 1.5$
+
+```{r function}
+k0 <- 10; k1 <- 150; a <-1.5
+f1 <- function(x) k0*(1+1/x)
+f2 <- function(x) k1 * x^a
+x <-seq(from=0.05, to=1, length=200)
+
+matplot(
+  x, cbind(f1(x),f2(x)), type="l",
+  col=2:3, lty=c(1,2), 
+  lwd=c(2,2), ylab="f1(x), f2(x)"
+)
+legend(
+  "topright",
+  c("f1(x)","f2(x)"), col=2:3,
+  lty=c(1,2), lwd=c(2,2)
+)
+```
+
+On peut trouver la racine recherchée grâce à la fonction `uniroot`.
+
+```{r fun.uniroot}
+f1 <- function(x) k0*(1+1/x)
+f2 <- function(x) k1 * x^a
+f  <- function(x) f2(x) - f1(x)
+
+racine <- uniroot(f, lower = 0, upper = 1)
+racine
+```
+La fonction `uniroot()` ne retourne jamais qu'une
+seule racine, dans l'intervalle spécifié.
+
+Lorsque plusieurs racines sont susceptibles d'exister,
+il est préférable d’utiliser une autre fonction,
+`uniroot.all()` qui retourne, elle, toutes les racines 
+existantes dans l’intervalle indiqué. Cette fonction
+se trouve dans le `package rootSolve`.
+
+
+* Soit l’équation
+
+$$
+\frac{dx}{dt} = f_1(x) − f_2(x) 
+$$
+
+où 
+
+$$
+f_1(x) = ae \left(k_0 + \frac{V_m x^n}{K+x} n \right)
+$$
+
+et 
+$$
+f_2 (x) = kx
+$$
+
+$k_0 = 0.02$, $K = 5$, $ae = 3$, $V_m = 1$, 
+$k = 0.6$ et $n = 2.5$ et $0 < x < 6$
+
+```{r aber.roots}
+k0=0.02; K=5; Vm=1; ae=3; k=0.6; n=2.5;
+f1 <- function(x) ae *(k0+Vm *x^n /(K + x^n))
+f2 <- function(x) k * x
+
+mini=0; maxi=6
+x <-seq(from=mini, to=maxi, by=1/200)
+matplot(x,cbind(f1(x), f2(x)),type="l",col=c("blue","green"),xlab="x",ylab="f1(x), f2(x)")
+racine = uniroot.all(function(x) f1(x)-f2(x), lower=mini, upper=maxi)
+racine
+## [1] 0.1034382 1.0851845 4.6049485
+points(racine, f1(racine), pch=19, cex=1.8, col="red")
+legend("topleft",c("f1(x)","f2(x)"),col=c("blue","green"),lty=1)
+```
+
 
 ## Stabilité d'une équation différentielle à une variable
 
@@ -40,12 +146,12 @@ Et conditions initiales :
 ```{r func.def}
 # ceci était ma première idée mais elle n'est pas compatible avec
 # la fonction `ode`
-#f_from_constants <- function(c, a, s){
-#  function(x){
-#    (1 - x) * c * x^a * s - x * c * (1 - x)^a * (1 - s)
-#  }
-#}
-#myfunc <- f_from_constants(3, 2, 0.1)
+f_from_constants <- function(c, a, s){
+  function(x){
+    (1 - x) * c * x^a * s - x * c * (1 - x)^a * (1 - s)
+  }
+}
+myfunc <- f_from_constants(3, 2, 0.1)
 
 
 h <- 0.01
@@ -90,8 +196,10 @@ with(as.list(c(cond_init, parametres)),{
 })
 ```
 
-Oui, en analysant l'équation différentielle on peut observer qu'elle est 
-composée de la différence de deux termes contentant $1 - x$ et $x$, alternant 
+Oui, en analysant l'équation différentielle on peut 
+observer qu'elle est 
+composée de la différence de deux termes contentant 
+$1 - x$ et $x$, alternant 
 celui qui est élevé à la puissance $a$.
 
 **Réponse** : Nous avons donc que la solution est une constante 
@@ -101,5 +209,48 @@ Si ces valeurs existent, que pouvez-vous dire de la limite de la solution
 de l'équation (1) (lorsque $t \rightarrow \infty$) pour des valeurs de
 conditions initiales proches des valeurs déterminées à la question précédente ?
 
+Elle est constante, si l'on intègre numériquement à partir d'une valeur nulle, 
+le résultat sera nul aussi.
 
+## Stabilité d'un système d'équation différentielles à deux variables
 
+Implémenter sous R la résolution du système d’équation différentielle suivant
+
+* $x'(t) = -y$
+
+* $y'(t) = x$
+
+```{r sol.system}
+h <- 0.01
+t_0 <- 0
+t_f <- 10
+
+temps <- seq(from = t_0, to = t_f, by = h)
+parametres <- c(c=3, a=2, s=0.1)
+cond_init <- c(x=1, y=20)
+
+# TODO : find how to do non-standard evaluation
+# providing a symbol or string with the formula
+# in order to generalise these functions.
+derivee.solver <- function(t, condinit, parametres){
+  #' Function to be pased to deSolve::ode()
+  with(as.list(c(condinit, parametres)),{
+      dx <- -y
+      dy <- x
+      return(list(c(dx, dy)))
+  })
+}
+
+xy <- ode(y = cond_init, times = temps, func = derivee.solver, parms = parametres)
+xy %>% as.data.frame() %>% tibble() %>% 
+  ggplot(aes(x=time)) + 
+    geom_line(aes(y=x, colour="x")) +
+    geom_line(aes(y=y, colour="y"))
+```
+
+Existe-t-il une ou des valeurs de conditions initiales (valeurs fixées de 
+$x(0)$, $y(0)$) pour lesquelles la solution du système (2) est constante?
+
+Oui, $(x, y)(t_0) = (0, 0)$.
+
+Que pouvez-vous dire de la stabilité de ces états stationnaires ?

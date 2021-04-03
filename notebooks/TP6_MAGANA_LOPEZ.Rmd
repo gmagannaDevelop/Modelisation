@@ -1,0 +1,405 @@
+---
+title: "Schéma de regulations croisées"
+author: "Gustavo Magaña López"
+date: "02/04/2021"
+output:
+  pdf_document:
+    toc: yes
+    toc_depth: '3'
+  html_document:
+    toc: yes
+    toc_depth: 3
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+here::i_am("notebooks/TP6_MAGANA_LOPEZ.Rmd")
+library(here)
+knitr::opts_chunk$set(echo = TRUE, tidy = T)
+```
+
+```{r libs, message=F}
+library(tidyverse)
+library(deSolve)
+library(rootSolve)
+```
+
+On considère un système dans lequel __chacune des deux 
+composantes $X$ et $Y$ régule la synthèse de l'autre__, en
+ayant toujours le même type d'action, soit activatrice,
+soit inhibitrice. $X$ et $Y$ sont par ailleurs soumis à
+un processus de dégradation correspondant à une réaction 
+du premier ordre.
+
+Cette dynamique est modélisée par les équations 
+différentielles $f$, $g$ suivantes :
+
+$$
+f(X, Y) = \frac{dX}{dt} = v_{in x} - v_{out x} 
+= k_{inx}\left( 1 + \alpha\frac{Y^n}{1 + Y^n}\right) - k_{outx} X
+$$
+
+$$
+g(X, Y) = \frac{dY}{dt} = v_{in y} - v_{out y} 
+= k_{in y}\left( 1 + \beta\frac{X^n}{1 + X^n}\right) - k_{out y} Y
+$$
+
+Selon les signes des paramètres $\alpha$ et $\beta$...
+
+## Question 1
+
+Établir les équations explicites des
+isoclines nulles du système sous la forme
+$X = f(Y)$ et $Y = f(X)$.
+
+**R** : Par définition, les isoclines nulles 
+s'obtiennent lorsque les dérivées s'annullent.
+En imposant $\partial_t X = 0$ et 
+$\partial_t Y = 0$, nous obtenons avec une manipulation
+algébrique minimale, pour $X$ :
+
+$$
+X = f(Y) = \frac{k_{inx}}{k_{outx}}
+\left(\ 1 + \alpha\frac{Y^n}{1 + Y^n} \right) 
+$$
+
+et pour $Y$ :
+
+$$
+Y = f(X) = \frac{k_{iny}}{k_{outy}}
+\left(\ 1 + \beta\frac{X^n}{1 + X^n} \right) 
+$$
+
+
+```{r isoclines.nulles}
+kinx <- 0.1 
+kiny <- 0.2 
+koutx <- 1 
+kouty <- 1 
+n <- 3 
+a <- 20 
+b <- 15
+
+X <- function(Y){
+  (kinx/koutx) * (1 + a*Y^n/(1+Y^n))
+}
+
+Y <- function(X){
+  (kiny/kouty) * (1 + b*X^n/(1+X^n))
+}
+
+grille.xy <- seq(from=0, to=3.5, length.out = 300)
+
+plan.phase <- 
+  data.frame(t=grille.xy, dx=X(grille.xy), dy=Y(grille.xy)) %>% 
+  tibble()
+
+plan.phase %>% ggplot() + 
+    geom_line(aes(x = dx, y = t, colour="dx = 0")) +
+    geom_line(aes(x = t, y = dy, colour="dy = 0")) +
+    labs(x = "X", y = "Y", title = "Intersection des isoclines nulles")
+
+```
+
+# Question 2
+
+À partir des équations différentielles, calculer 
+par recherche numérique puis tracer l'isocline nulle
+$\partial_t X = 0$ ($X = f(Y)$) et l'isocline nulle
+$\partial_t Y = 0$ ($Y = f(X)$).
+
+```{r isoclines.num, eval=F}
+
+dX <- function(X, Y){
+  kinx * (1 + a*Y^n/(1+Y^n)) - koutx * X
+}
+
+dY <- function(X, Y){
+  kiny * (1 + b*X^n/(1+X^n)) - kouty * Y
+}
+
+# uniroot demande des fonctions à une variable :(
+uniroot.all(X, lower = 0, upper = 3.5)
+```
+
+Ici nous avons eu du mal à écrire une fonction à une variable
+pour donner à `uniroot.all()`
+
+En partant de $\partial_tY = 0$ nous obtenons une expression
+qui contient $X = f(Y)$.
+
+$$
+X = \left(\right)
+$$
+
+## Question 3
+
+Calculer les coordonnées du(des) état(s)
+stationnaire(s) du système par analyse des 
+modes normaux.
+
+```{r st.ode}
+params <- c(
+  kinx=0.1, kiny=0.2, 
+  koutx=1, kouty=1, 
+  n=3, a=20, b=15
+)
+
+temps<-seq(0, 3.5, length.out = 300)
+
+condinit<-c(X=1, Y=1)
+
+derivee.solver <- function(t, condinit, parametres){
+  #' Function to be pased to deSolve::ode()
+  with(as.list(c(condinit, parametres)),{
+      dx <- kinx * (1 + a*Y^n/(1+Y^n)) - koutx * X
+      dy <- kiny * (1 + b*X^n/(1+X^n)) - kouty * Y
+      return(list(c(dx, dy)))
+  })
+}
+
+x.star1 <- stode(y=c(X=0, Y=0), parms = params, func = derivee.solver)
+x.star2 <- stode(y=c(X=0.5, Y=0.5), parms = params, func = derivee.solver)
+x.star3 <- stode(y=c(X=2, Y=3), parms = params, func = derivee.solver)
+
+plan.phase %>% ggplot() + 
+    geom_line(aes(x = dx, y = t, colour="dx = 0")) +
+    geom_line(aes(x = t, y = dy, colour="dy = 0")) +
+    geom_point(x=x.star1$y[1], y=x.star1$y[2]) +
+    geom_point(x=x.star2$y[1], y=x.star2$y[2]) +
+    geom_point(x=x.star3$y[1], y=x.star3$y[2]) +
+    labs(x = "X", y = "Y", title = "Intersection des isoclines nulles")
+```
+
+## Question 4
+
+Stabilité des états stationnaires.
+```{r stability}
+
+stability_criteria <- function(stode.result, ode.func, params){
+  #' Compute trace, determinant and \delta 
+  #' to evaluate the stability of an ode system.
+  #' on a given point
+  .jacob <- 
+    rootSolve::jacobian.full(y = stode.result$y, func = ode.func, parms = params)
+  
+  .tr <- sum(diag(.jacob))
+  .det <- det(.jacob)
+  .delta <- .tr^2 - 4 * .det
+  
+  list(trace=.tr, determinant=.det, discriminant=.delta)
+}
+
+stationnary_type <- function(stode.result, ode.func, params) {
+  .criteria <- stability_criteria(stode.result, ode.func, params)
+  
+  if (.criteria$determinant < 0){
+    return("Point de selle")
+  }
+}
+
+stability_criteria(x.star1, derivee.solver, params) # criteria1 <- 
+stability_criteria(x.star2, derivee.solver, params) # criteria2 <- 
+stability_criteria(x.star3, derivee.solver, params) # criteria3 <- 
+```
+
+## Question 5
+
+Résoudre le système et tracer le plan de phase, c'est à dire
+$Y(t)$ ~ $X(t)$ pour 200 temps compris entre 0 et 4.
+Tracer les points correspondants aux états stationnaires.
+
+```{r res.equation}
+temps<-seq(0, 4, length.out = 500)
+
+condinit<-c(X=1, Y=1)
+
+sol.q5 <- ode(
+  y=condinit, times=temps, 
+  parms = params, func = derivee.solver
+) 
+
+sol.q5.df <- sol.q5 %>% as.data.frame() %>% tibble()
+
+sol.q5.df %>% ggplot(aes(x=temps)) +
+  geom_line(aes(y=X, colour="X(t)")) +
+  geom_line(aes(y=Y, colour="Y(t)")) +
+  labs(title = "Evolution temporarie du système")
+
+sol.q5.df %>% ggplot(aes(x=X, y=Y)) + 
+  geom_line() + labs(title = "Plan de phase Y(t) = f(X(t))")
+```
+
+## Question 6
+
+(mettre la matrice ici)
+
+Étant données les valeurs des différents indicateurs du caractère 
+d'un état stationnaire (trace $Tr$, déterminant $\Delta$ et équation caractéristique $\delta$), on constate qu'il s'agit de nœuds et points de selle, pour lesquelles la jacobienne n'aura pas de valeurs propres complexes sinon réelles. Donc ces points ne peuvent pas engendrer des oscillations.
+
+(faire l'évaluation)
+(parler d'où viennent les oscillations analytiquement)
+
+
+## Question 7
+
+Reproduisez les isoclines et quelques trajectoires des deux figures 
+ci-dessous. Interpréter...
+
+```{r new.isoclines}
+# paramètres pour la figure de gauche (n=1)
+params1 <- 
+  c( kinx=7, kiny=8,
+     koutx=1, kouty=1, 
+     a=-0.95, b=-0.95, n=1 )
+
+# paramètres pour la figure de droite (n=3)
+params2 <- 
+  c( kinx=7, kiny=8,
+     koutx=1, kouty=1, 
+     a=-0.95, b=-0.95, n=3 )
+
+# fonction pour visualiser le plan de phase
+plot_phase_plane <- function(params){
+  with(as.list(c(params)),{
+    X <- function(Y){ (kinx/koutx) * (1 + a*Y^n/(1+Y^n)) }
+    Y <- function(X){ (kiny/kouty) * (1 + b*X^n/(1+X^n)) }
+  
+    grille.xy <- seq(from=0, to=8, length.out = 300)
+  
+    plan.phase <- 
+      data.frame(t=grille.xy, dx=X(grille.xy), dy=Y(grille.xy)) %>% 
+      tibble()
+  
+    le.plot <- 
+      plan.phase %>% ggplot() + 
+        geom_line(aes(x = dx, y = t, colour="dx = 0")) +
+        geom_line(aes(x = t, y = dy, colour="dy = 0")) +
+        labs(
+          x = "X", y = "Y", 
+         title = glue::glue("Intersection des isoclines nulles n = {n}")
+        )
+    return(le.plot)
+  })
+}
+
+create_trajectory <- function(...){
+  #' fonction pour créer des trajectoires à partir
+  #' d'un vecteur de conditions initiales
+  #' 
+  #' params : (see ?ode)
+  ode(...) %>% as.data.frame() %>% tibble::tibble()
+}
+  
+  
+# visualisation des deux systèmes 
+p7.1 <- plot_phase_plane(params1)
+p7.2 <- plot_phase_plane(params2)
+
+temps <- seq(0, 8, length.out = 300)
+
+tictoc::tic()
+sol.q7 <- ode(y=condinit, times=temps, parms = params1, func = derivee.solver) 
+sol.q7.df <- sol.q7 %>% as.data.frame() %>% tibble()
+tictoc::toc()
+```
+
+Le temps d'intégration n'est pas important pour le système étudié.
+
+
+```{r p.o.c}
+traj1 <- create_trajectory(
+  y=c(X=0, Y=1), times=temps, parms = params1, func = derivee.solver
+)
+traj2 <- create_trajectory(
+  y=c(X=3, Y=4), times=temps, parms = params1, func = derivee.solver
+)
+traj3 <- create_trajectory(
+  y=c(X=6, Y=6), times=temps, parms = params1, func = derivee.solver
+)
+p7.1 + 
+  geom_path(data=traj1, mapping = aes(x=X, y=Y)) +
+  geom_path(data=traj2, mapping = aes(x=X, y=Y)) +
+  geom_path(data=traj3, mapping = aes(x=X, y=Y)) 
+```
+
+```{r multi.eval}
+initial.grid <- seq(0, 8, length.out = 6)
+n.initial <- length(initial.grid)
+
+# listes de conditions initiales et solutions
+condinit.ls <- vector("list", n.initial^2)
+solutions1.ls <- vector("list", n.initial^2)
+solutions2.ls <- vector("list", n.initial^2)
+
+# cette double boucle n'est pas idéale 
+# d'un point de vue de la complexité algorithmique
+# mais le temps d'intégration pour la grille temporelle
+# choisie n'est pas important donc on ne devra pas attendre
+# trop de temps
+for(i in 0:(n.initial-1)){
+  for(j in 1:n.initial){
+    # conditions initiales
+    condinit.ls[[i*n.initial + j]] <- 
+      # en altérnant les valeurs de i et j, 
+      # nous aurons toutes les combinaisons désirées :
+      c(X=initial.grid[i+1], Y=initial.grid[j])
+    # solutions pour n = 1
+    solutions1.ls[[i*n.initial + j]] <-
+     ode(
+       y=condinit.ls[[i*n.initial + j]], 
+       times = temps, parms = params1,
+       func = derivee.solver
+     ) %>% as.data.frame() %>% tibble() 
+    # solutions pour n = 3
+    solutions2.ls[[i*n.initial + j]] <-
+     ode(
+       y=condinit.ls[[i*n.initial + j]], 
+       times = temps, parms = params2,
+       func = derivee.solver 
+     ) %>% as.data.frame() %>% tibble() 
+  }
+}
+
+
+add_trajectories <- function(
+  le.plot, solutions.ls, X=X, Y=Y, alpha=0.2, ...
+){
+  #' Ajouter trajectoires dans le plan phase
+  #' a un objet de type ggplot, qui contient déjà
+  #' les isoclines nulles.
+  
+  # enqoute (defuse) variable names, voir :
+  # https://rlang.r-lib.org/reference/quotation.html#defusing-function-arguments
+  X <- tryCatch(rlang::enquo(X), error = function(e) e)
+  Y <- tryCatch(rlang::enquo(Y), error = function(e) e)
+  
+  # Chacune des solutions (X, Y) = f(t) est une trajectoire
+  # dans le plan phase, on peut créer l'élément visuel, 
+  # avec une couche visuel de type geom_path()
+  planes <- 
+    sapply(solutions.ls, function(x){ 
+      ggplot2::geom_path(data=x, mapping=aes(x={{X}}, y={{Y}}), alpha=alpha)
+    })
+  
+  # On additionne toutes les "couches visuelles pour 
+  # obtenir la visualisation désirée :
+  le.plot <- purrr::reduce(planes, ~ .x + .y, .init = le.plot)
+  le.plot + labs(...)
+}
+
+p7.1.2 <- p7.1 %>% add_trajectories(
+  solutions1.ls, X, Y, title="Isoclines nulles + trajectoires, n = 1"
+)
+p7.2.2 <- p7.2 %>% add_trajectories(
+  solutions2.ls, X, Y, title="Isoclines nulles + trajectoires, n = 3"
+)
+
+p7.1.2
+
+p7.2.2
+```
+
+
+
+

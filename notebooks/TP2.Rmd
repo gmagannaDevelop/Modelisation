@@ -6,6 +6,8 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
+here::i_am("notebooks/TP2.Rmd")
+library(here)
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
@@ -30,26 +32,25 @@ t_f <- 10
 
 # definition de l'interval de temps
 temps <- seq(from = t_0, to = t_f, by = h)
-
 # vecteur de parametres
 parametres <- c(r = 1.5, K = 10)
-
 # vecteur des conditions initiales
 condinit <- c(x = 0.1)
 
 # definition de la fonction
 the_func1 <- function(t, condinit, parametres){
-  with(
-    as.list(c(condinit, parametres)),
-    {
+  with(as.list(c(condinit, parametres)), {
       dx <- r * x * (1-x/K)
       return(list(c(dx)))
-    }
-  )
+  })
 }
 
 res <- ode(y = condinit, times = temps, func = the_func1, parms = parametres)
 head(res)
+
+res %>% as.data.frame() %>% tibble() %>%
+  ggplot(aes(x=time, y=x)) +
+    geom_line()
 ```
 
 

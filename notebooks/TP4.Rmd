@@ -1,0 +1,116 @@
+---
+title: "Le modèle de Lotka-Voltera"
+author: "Gustavo Magaña López"
+date: "24/03/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+here::i_am("notebooks/TP4.Rmd")
+library(here)
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r libs, message=F}
+library(ggplot2)
+library(deSolve)
+library(rootSolve)
+```
+
+## Retour sur le modèle de Lokta-Voletra
+
+Les proes $x$ sont supposées avoir, ...
+
+$$
+\frac{dx}{dt} = Ax
+$$
+
+La croissance de la population de prédateurs dépende, elle ...
+
+$$
+\frac{dy}{dt} = -Cy
+$$
+
+Comment formaliser l'interaction proies-prédateurs ? Volterra suppose ...
+
+* $\frac{dx}{dt} = Ax - Bxy$
+* $\frac{dy}{dt} = -Cy + Dxy$
+
+En définissant un ensemble de variables auxiliaires de telle sorte d'avoir unités réduites :
+
+* $\tau = At$
+* $u = \frac{D}{C}x$
+* $v = \frac{B}{A}y$
+
+Système différentiel normalisé :
+
+* $\frac{du}{d\tau} = u(1-v)$
+* $\frac{dv}{dt} = \alpha v(u - 1)$ 
+
+
+## Exercice 1 séance 4 
+
+En utilisant les fonctions `stode()` et `jacobian.full()` du package `rootsolve` : résoudre le système de LV simplifié, ayant pour conditions intiales :
+
+* $u(0) = 5$
+* $v(0) = 3$
+* $\alpha = 3$
+
+```{r func.def}
+h <- 0.01
+u_0 <- 5
+v_0 <- 3
+t_0 <- 0
+t_f <- 100
+
+temps <- seq(from = t_0, to = t_f, by = h)
+parametres <- c(c=3, a=2, s=0.1)
+cond_init <- c(x=0.0001)
+
+# TODO : find how to do non-standard evaluation
+# providing a symbol or string with the formula
+# in order to generalise these functions.
+derivee.solver <- function(t, condinit, parametres){
+  #' Function to be pased to deSolve::ode()
+  with(as.list(c(condinit, parametres)),{
+      dx <- (1 - x) * c * x^a * s - x * c * (1 - x)^a * (1 - s)
+      return(list(c(dx)))
+  })
+}
+
+derivee.from.params <- function(parametres){
+  #' Generator to yield the derivative fixing the parameters
+  with(as.list(c(parametres)),{
+      function(x) (1 - x) * c * x^a * s - x * c * (1 - x)^a * (1 - s)
+  })
+}
+
+#x <- ode(y = cond_init, times = temps, func = derivee.solver, parms = parametres)
+#head(x)
+#plot(x)
+```
+
+2. Existe-t-il une ou des valeurs de conditions initiales (valeurs fixées de $x(0)$)
+pour lesquelles la solution de l'équation (1) est une constante ?
+
+```{r points.crit}
+with(as.list(c(cond_init, parametres)),{
+  xstar1 <<- 0
+  xstar2 <<- 1
+  xstar3 <<- (1+(s/(1-s))^{1/(a-1)})^{-1}
+})
+```
+
+Oui, en analysant l'équation différentielle on peut observer qu'elle est 
+composée de la différence de deux termes contentant $1 - x$ et $x$, alternant 
+celui qui est élevé à la puissance $a$.
+
+**Réponse** : Nous avons donc que la solution est une constante 
+lorsque $x = 0 \; \vee x = 1$.
+
+Si ces valeurs existent, que pouvez-vous dire de la limite de la solution 
+de l'équation (1) (lorsque $t \rightarrow \infty$) pour des valeurs de
+conditions initiales proches des valeurs déterminées à la question précédente ?
+
+
+
