@@ -4,6 +4,7 @@ author: "Gustavo Magaña López"
 date: "02/04/2021"
 output:
   pdf_document:
+    latex_engine: xelatex
     toc: yes
     toc_depth: '3'
   html_document:
@@ -22,6 +23,7 @@ knitr::opts_chunk$set(echo = TRUE, tidy = T)
 library(tidyverse)
 library(deSolve)
 library(rootSolve)
+library(foreach)
 ```
 
 On considère un système dans lequel __chacune des deux 
@@ -83,20 +85,29 @@ stationnary_type <- function(stode.result, ode.func, params) {
 }
 
 
-describe_st_point <- function(point, params, ode.func){
+describe_st_point <- function(stode.result, params, ode.func){
   #' Describe a stationnary point
-  #' for params, see ?stode
-  .x.star <- rootSolve::stode(y=point, parms = params, func = ode.func)
+  #' for stode.result see ?rootSolve::stode
   .type   <- stationnary_type(stode.result, ode.func, params) 
   .criteria   <- stability_criteria(stode.result, ode.func, params) 
   .row <- list(
-    `X*` = point[["X"]],
-    `Y*` = point[["Y"]],
+    `X star` = stode.result$y[["X"]],
+    `Y star` = stode.result$y[["Y"]],
     trace = .criteria$trace,
-    `Δ` = .criteria$determinant,
-    `δ` = .criteria$discriminant
+    `determinant` = .criteria$determinant,
+    `discriminant` = .criteria$discriminant,
+    `Type` = .type
   )
   as.data.frame(.row)
+}
+
+
+resume_st_points <- function(stode.results.ls, params, ode.func){
+  res.iter <- iterators::iter(stode.results.ls) 
+  .df <- foreach::foreach(res = res.iter, .combine = rbind) %do% {
+    describe_st_point(res, params, ode.func)
+  }
+  tibble::tibble(.df)
 }
 
 
@@ -237,7 +248,7 @@ $$
 X = \left(\right)
 $$
 
-## Question 3
+# Question 3
 
 Calculer les coordonnées du(des) état(s)
 stationnaire(s) du système par analyse des 
@@ -284,20 +295,18 @@ plan.phase %>% ggplot() +
     labs(x = "X", y = "Y", title = "Intersection des isoclines nulles")
 ```
 
-## Question 4
+# Question 4
 
 Stabilité des états stationnaires.
 ```{r stability}
+etats.stationnaires <- list(x.star1, x.star2, x.star3)
+classif.es <- etats.stationnaires %>% resume_st_points(params, derivee.solver)
 
-stability_criteria(x.star1, derivee.solver, params) 
-stationnary_type(x.star1, derivee.solver, params) 
-stability_criteria(x.star2, derivee.solver, params) 
-stationnary_type(x.star2, derivee.solver, params) 
-stability_criteria(x.star3, derivee.solver, params) 
-stationnary_type(x.star3, derivee.solver, params) 
 ```
 
-## Question 5
+`r classif.es %>% knitr::kable()`
+
+# Question 5
 
 Résoudre le système et tracer le plan de phase, c'est à dire
 $Y(t)$ ~ $X(t)$ pour 200 temps compris entre 0 et 4.
@@ -324,7 +333,7 @@ sol.q5.df %>% ggplot(aes(x=X, y=Y)) +
   geom_line() + labs(title = "Plan de phase Y(t) = f(X(t))")
 ```
 
-## Question 6
+# Question 6
 
 (mettre la matrice ici)
 
@@ -335,7 +344,7 @@ d'un état stationnaire (trace $Tr$, déterminant $\Delta$ et équation caracté
 (parler d'où viennent les oscillations analytiquement)
 
 
-## Question 7
+# Question 7
 
 Reproduisez les isoclines et quelques trajectoires des deux figures 
 ci-dessous. Interpréter...
